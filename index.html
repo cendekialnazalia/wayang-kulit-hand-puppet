@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wayang Kulit — Hand Puppet</title>
+  <link rel="icon" type="image/png" href="./assets/bg1_mother_body.png" />
+
+  <!-- MediaPipe Hands & Drawing Utilities -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --pill-bg: rgba(28, 19, 12, 0.82);
+      --pill-border: rgba(255, 226, 180, 0.2);
+      --btn-bg: rgba(36, 25, 16, 0.82);
+      --btn-bg-hover: rgba(54, 38, 24, 0.95);
+      --text-cream: #f4ebd9;
+      --text-muted: rgba(244, 235, 217, 0.68);
+      --amber-glow: #f59e0b;
+      --gold-accent: #ebb865;
+      --pink-tip: #ff5e7e;
+      --fist-green: #34d399;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a110a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+      color: var(--text-cream);
+    }
+
+    /* Main Stage Container with Traditional Javanese Dalang Layar Tancap Backdrop */
+    #app-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 0.6vh;
+      background:
+        url('./assets/dalang_backdrop.jpg') center center / 100% 100% no-repeat,
+        radial-gradient(circle at 50% 35%, rgba(122, 77, 32, 0.55) 0%, rgba(42, 24, 10, 0.92) 68%, #140b04 100%);
+    }
+
+    /* Stage Wrapper */
+    #stage-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Split Mode: Fits between the red-gold curtains and rests right above the bamboo gedebog */
+    body.showcase-mode #stage-wrapper {
+      width: 76.8vw;
+      height: 77.5vh;
+      max-height: none;
+      border-radius: 14px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.8), 0 0 0 1.5px rgba(255, 215, 150, 0.22);
+    }
+
+    #stage-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+
+    #stage-canvas:active {
+      cursor: grabbing;
+    }
+
+    /* Top-Left Background Switcher Pill */
+    .top-left-bg-bar {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 30;
+      flex-wrap: wrap;
+    }
+
+    .bg-cycle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 13px;
+      border-radius: 9999px;
+      background: var(--pill-bg);
+      border: 1px solid var(--pill-border);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: var(--text-cream);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      transition: all 0.2s ease;
+    }
+
+    .bg-cycle-btn:hover {
+      background: var(--btn-bg-hover);
+      border-color: rgba(255, 226, 180, 0.38);
+      transform: translateY(-1px);
+    }
+
+    .bg-num-pills {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--pill-bg);
+      border: 1px solid var(--pill-border);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 3px;
+      border-radius: 9999px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+
+    .bg-num-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .bg-num-btn:hover {
+      color: var(--text-cream);
+    }
+
+    .bg-num-btn.active {
+      background: #d97706;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.45);
+    }
+
+    /* Center Toast Notification when Background Changes via Double-Fist */
+    #bg-toast {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      padding: 7px 16px;
+      border-radius: 999px;
+      background: rgba(20, 14, 9, 0.88);
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      color: #ecfdf5;
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(8px);
+      z-index: 45;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      white-space: nowrap;
+    }
+
+    #bg-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Top-Right Floating Controls (Mute & Settings) */
+    .top-right-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      z-index: 30;
+    }
+
+    .circle-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--btn-bg);
+      border: 1px solid var(--pill-border);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: var(--text-cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
+    }
+
+    .circle-btn:hover {
+      background: var(--btn-bg-hover);
+      border-color: rgba(255, 226, 180, 0.32);
+      transform: translateY(-1px);
+    }
+
+    .circle-btn:active {
+      transform: translateY(0) scale(0.96);
+    }
+
+    .circle-btn.active {
+      border-color: rgba(245, 158, 11, 0.55);
+      color: #fcd34d;
+    }
+
+    .circle-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    /* Bottom-Left Status Pill */
+    .status-pill {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 15px 7px 11px;
+      border-radius: 9999px;
+      background: var(--pill-bg);
+      border: 1px solid var(--pill-border);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      z-index: 30;
+      font-size: 12.5px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      color: var(--text-cream);
+      pointer-events: none;
+      transition: all 0.25s ease;
+    }
+
+    .status-dot {
+      position: relative;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--amber-glow);
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.85);
+      transition: all 0.25s ease;
+    }
+
+    .status-dot::after {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .status-pill.active-two .status-dot {
+      background: #6b441a;
+      box-shadow: inset 0 0 0 1.5px rgba(245, 175, 75, 0.55);
+    }
+
+    .status-pill.active-two .status-dot::after {
+      border-color: rgba(245, 175, 75, 0.22);
+    }
+
+    .status-pill.fist-active {
+      border-color: rgba(52, 211, 153, 0.55);
+    }
+
+    .status-pill.fist-active .status-dot {
+      background: var(--fist-green);
+      box-shadow: 0 0 10px rgba(52, 211, 153, 0.9);
+    }
+
+    /* Webcam + AI Hand Gesture Box (Visible by default!) */
+    #cam-preview-box {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 272px;
+      height: 178px;
+      border-radius: 13px;
+      overflow: hidden;
+      background: #1c1612;
+      border: 1.5px solid rgba(255, 222, 170, 0.26);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.68), 0 0 0 1px rgba(0, 0, 0, 0.5);
+      z-index: 35;
+      transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #cam-preview-box.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(16px) scale(0.95);
+    }
+
+    body.showcase-mode #cam-preview-box {
+      position: relative;
+      bottom: auto;
+      left: auto;
+      transform: none;
+      margin-top: 0.5vh;
+      height: 20.6vh;
+      width: calc(20.6vh * 1.62);
+      min-width: 210px;
+      min-height: 128px;
+      border-radius: 10px;
+      border: 1.5px solid rgba(255, 215, 150, 0.28);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75);
+    }
+
+    body.showcase-mode #cam-preview-box.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px) scale(0.95);
+    }
+
+    #input-video {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #cam-canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cam-overlay-bar {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 5;
+    }
+
+    #cam-preview-box:hover .cam-overlay-bar {
+      opacity: 1;
+    }
+
+    .cam-mini-btn {
+      background: rgba(24, 16, 10, 0.78);
+      border: 1px solid rgba(255, 225, 180, 0.25);
+      color: var(--text-cream);
+      border-radius: 6px;
+      padding: 3px 7px;
+      font-size: 10px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+
+    .cam-mini-btn:hover {
+      background: rgba(48, 32, 20, 0.92);
+    }
+
+    #cam-prompt-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(22, 15, 10, 0.82);
+      backdrop-filter: blur(4px);
+      text-align: center;
+      padding: 14px;
+      z-index: 4;
+      transition: opacity 0.25s ease;
+    }
+
+    #cam-prompt-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .cam-prompt-btn {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: #fff;
+      border: 1px solid rgba(255, 235, 190, 0.35);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
+    }
+
+    .cam-prompt-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    /* Settings Popover Panel */
+    #settings-panel {
+      position: absolute;
+      top: 60px;
+      right: 14px;
+      width: 288px;
+      border-radius: 14px;
+      background: rgba(28, 19, 12, 0.94);
+      border: 1px solid rgba(255, 226, 180, 0.22);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+      padding: 14px 16px;
+      z-index: 40;
+      color: var(--text-cream);
+      font-size: 12.5px;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    #settings-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px) scale(0.97);
+    }
+
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 13px;
+      color: #fcd34d;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 226, 180, 0.12);
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+
+    .settings-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-label {
+      color: var(--text-cream);
+      font-size: 12px;
+    }
+
+    .settings-sub {
+      display: block;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch.on {
+      background: #d97706;
+    }
+
+    .toggle-switch::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s ease;
+    }
+
+    .toggle-switch.on::after {
+      transform: translateX(16px);
+    }
+
+    .settings-slider {
+      width: 100px;
+      accent-color: #f59e0b;
+      cursor: pointer;
+    }
+
+    .guide-box {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 9px;
+      background: rgba(255, 230, 185, 0.06);
+      border: 1px solid rgba(255, 230, 185, 0.1);
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }
+
+    .guide-box strong {
+      color: var(--text-cream);
+    }
+  </style>
+</head>
+<body class="showcase-mode">
+  <div id="app-container">
+    <div id="stage-wrapper">
+      <canvas id="stage-canvas"></canvas>
+
+      <!-- Top-Left Background Switcher (Order: 1. Teras Rumah -> 2. Halaman Sekolah -> 3. Auditorium) -->
+      <div class="top-left-bg-bar">
+        <button id="btn-next-bg" class="bg-cycle-btn" title="Klik atau buat Peace Sign (✌️) untuk ganti background">
+          <span>✌️</span>
+          <span id="bg-label-text">Bg 1/3: Teras Rumah Malam</span>
+        </button>
+        <div class="bg-num-pills">
+          <button class="bg-num-btn active" data-bg-idx="0" title="1: Teras Rumah Malam">1</button>
+          <button class="bg-num-btn" data-bg-idx="1" title="2: Halaman Sekolah">2</button>
+          <button class="bg-num-btn" data-bg-idx="2" title="3: Auditorium Konservasi">3</button>
+        </div>
+      </div>
+
+      <!-- Toast Notification on Background Switch -->
+      <div id="bg-toast">✌️ Ganti Background: 1/3 — Teras Rumah Malam</div>
+
+      <!-- Top-Right Audio & Settings Buttons -->
+      <div class="top-right-controls">
+        <button id="audio-btn" class="circle-btn" title="Toggle Gamelan Music (M)" aria-label="Toggle Gamelan Music">
+          <svg id="icon-muted" viewBox="0 0 24 24">
+            <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+          </svg>
+          <svg id="icon-unmuted" viewBox="0 0 24 24" style="display: none;">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+        </button>
+
+        <button id="settings-btn" class="circle-btn" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Settings Popover -->
+      <div id="settings-panel" class="hidden">
+        <div class="settings-header">
+          <span>Wayang Kulit Controls</span>
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 400;">v1.2</span>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <span class="settings-label">Camera Hand Preview</span>
+            <span class="settings-sub">Show mirrored webcam &amp; AI hand skeleton</span>
+          </div>
+          <div id="toggle-cam-preview" class="toggle-switch on" role="switch" aria-checked="true"></div>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <span class="settings-label">Docked Below Stage</span>
+            <span class="settings-sub">Place camera below stage like video</span>
+          </div>
+          <div id="toggle-showcase" class="toggle-switch on" role="switch" aria-checked="true"></div>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <span class="settings-label">Auto-Play Demo Dance</span>
+            <span class="settings-sub">Animate puppets &amp; AI hand preview</span>
+          </div>
+          <div id="toggle-demo" class="toggle-switch" role="switch" aria-checked="false"></div>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <span class="settings-label">Arm Reach Sensitivity</span>
+          </div>
+          <input id="slider-reach" class="settings-slider" type="range" min="0.7" max="1.5" step="0.05" value="1.05" />
+        </div>
+
+        <div class="guide-box">
+          <div><strong>Hand Gesture Guide:</strong></div>
+          <div>• <strong>Lingkaran Telapak:</strong> Menggerakkan badan wayang</div>
+          <div>• <strong>Titik Pink (Jempol &amp; Telunjuk):</strong> Menggerakkan tangkai <em>cempurit</em> tangan wayang</div>
+          <div>• <strong>✌️ Peace Sign (1 atau 2 Tangan):</strong> Ganti background (1 → 2 → 3)</div>
+        </div>
+      </div>
+
+      <!-- Bottom-Left Status Pill -->
+      <div id="status-pill" class="status-pill">
+        <span class="status-dot"></span>
+        <span id="status-text">Camera on · raise both hands</span>
+      </div>
+    </div>
+
+    <!-- Webcam + AI Hand Gesture Skeleton Box -->
+    <div id="cam-preview-box">
+      <video id="input-video" autoplay playsinline muted></video>
+      <canvas id="cam-canvas" width="360" height="240"></canvas>
+
+      <div class="cam-overlay-bar">
+        <button id="btn-cam-layout" class="cam-mini-btn" title="Ubah posisi kamera">Float / Dock</button>
+      </div>
+
+      <div id="cam-prompt-overlay" class="hidden">
+        <div id="cam-prompt-msg" style="font-size: 11.5px; color: var(--text-cream); line-height: 1.35;">
+          Izinkan akses kamera untuk melihat wajah &amp; gesture AI tangan Anda
+        </div>
+        <button id="btn-retry-cam" class="cam-prompt-btn">Aktifkan Kamera</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // 1. ASSET LOADING & BACKGROUND SCENES (ORDERED: FOTO 3 -> FOTO 2 -> FOTO 1)
+    // ============================================================================
+    const BG_LIST = [
+      {
+        id: 'teras',
+        title: 'Bg 1/3: Teras Rumah Malam',
+        shortTitle: '1/3 — Teras Rumah Malam',
+        src: './assets/bg_2_teras.jpg',
+        type: 'scene',
+        puppetSet: 'bg1',
+        defaultPuppetCount: 2,
+        img: new Image(),
+        loaded: false
+      },
+      {
+        id: 'sekolah',
+        title: 'Bg 2/3: Halaman Sekolah',
+        shortTitle: '2/3 — Halaman Sekolah',
+        src: './assets/bg_1_sekolah.jpg',
+        type: 'scene',
+        puppetSet: 'bg2',
+        defaultPuppetCount: 1,
+        img: new Image(),
+        loaded: false
+      },
+      {
+        id: 'auditorium',
+        title: 'Bg 3/3: Auditorium Konservasi',
+        shortTitle: '3/3 — Auditorium Konservasi',
+        src: './assets/bg_3_auditorium.jpg',
+        type: 'scene',
+        puppetSet: 'bg3',
+        defaultPuppetCount: 1,
+        img: new Image(),
+        loaded: false
+      }
+    ];
+
+    const assets = {
+      bg1MotherBody: new Image(),
+      bg1MotherUpperArm: new Image(),
+      bg1MotherForearm: new Image(),
+      bg1FatherBody: new Image(),
+      bg1FatherUpperArm: new Image(),
+      bg1FatherFrontForearm: new Image(),
+      bg1FatherBackForearm: new Image(),
+      bg2StudentBody: new Image(),
+      bg2StudentUpperArm: new Image(),
+      bg2StudentForearm: new Image(),
+      bg3SpeakerBody: new Image(),
+      bg3SpeakerUpperArm: new Image(),
+      bg3SpeakerFrontForearm: new Image(),
+      bg3SpeakerBackForearm: new Image(),
+      puppetLoadedCount: 0,
+      ready: false
+    };
+
+    function onPuppetAssetLoad() {
+      assets.puppetLoadedCount++;
+      if (assets.puppetLoadedCount >= 3) {
+        assets.ready = true;
+      }
+    }
+
+    const assetSources = [
+      ['bg1MotherBody', './assets/bg1_mother_body.png'],
+      ['bg1MotherUpperArm', './assets/bg1_mother_upper_arm.png'],
+      ['bg1MotherForearm', './assets/bg1_mother_forearm.png'],
+      ['bg1FatherBody', './assets/bg1_father_body.png'],
+      ['bg1FatherUpperArm', './assets/bg1_father_upper_arm.png'],
+      ['bg1FatherFrontForearm', './assets/bg1_father_front_forearm.png'],
+      ['bg1FatherBackForearm', './assets/bg1_father_back_forearm.png'],
+      ['bg2StudentBody', './assets/bg2_student_body.png'],
+      ['bg2StudentUpperArm', './assets/bg2_student_upper_arm.png'],
+      ['bg2StudentForearm', './assets/bg2_student_forearm.png'],
+      ['bg3SpeakerBody', './assets/bg3_speaker_body.png'],
+      ['bg3SpeakerUpperArm', './assets/bg3_speaker_upper_arm.png'],
+      ['bg3SpeakerFrontForearm', './assets/bg3_speaker_front_forearm.png'],
+      ['bg3SpeakerBackForearm', './assets/bg3_speaker_back_forearm.png']
+    ];
+
+    for (const [key, src] of assetSources) {
+      assets[key].onload = onPuppetAssetLoad;
+      assets[key].src = src;
+    }
+
+    for (const bgItem of BG_LIST) {
+      bgItem.img.onload = () => {
+        bgItem.loaded = true;
+      };
+      bgItem.img.src = bgItem.src;
+    }
+
+    const RIG = {
+      refWidth: 538,
+      refHeight: 514
+    };
+
+    function getPuppetRig(puppetSet, side) {
+      if (puppetSet === 'bg1') {
+        const s = 0.38;
+        if (side === 'left') {
+          return {
+            spriteScale: s,
+            naturalFacing: 1, // bg1_mother_body.png naturally faces RIGHT (+1)
+            drawArmsBehindBody: true,
+            rodStyle: 'bamboo',
+            body: {
+              img: assets.bg1MotherBody,
+              w: 413,
+              h: 915,
+              anchorX: 173,
+              anchorY: 260,
+              frontShoulder: { x: 235, y: 270 },
+              backShoulder:  { x: 91,  y: 251 },
+              gapitBottom:   { x: 117, y: 908 }
+            },
+            upperArm: {
+              img: assets.bg1MotherUpperArm,
+              w: 220,
+              h: 70,
+              p1: { x: 25, y: 35 },
+              p2: { x: 195, y: 35 },
+              len: 170 * s
+            },
+            frontForearm: {
+              img: assets.bg1MotherForearm,
+              w: 270,
+              h: 110,
+              p1: { x: 25, y: 55 },
+              p2: { x: 192, y: 55 },
+              len: 167 * s
+            },
+            backForearm: {
+              img: assets.bg1MotherForearm,
+              w: 270,
+              h: 110,
+              p1: { x: 25, y: 55 },
+              p2: { x: 192, y: 55 },
+              len: 167 * s
+            }
+          };
+        } else {
+          return {
+            spriteScale: s,
+            naturalFacing: -1, // bg1_father_body.png naturally faces LEFT (-1)
+            drawArmsBehindBody: false,
+            rodStyle: 'bamboo',
+            body: {
+              img: assets.bg1FatherBody,
+              w: 305,
+              h: 910,
+              anchorX: 151,
+              anchorY: 260,
+              frontShoulder: { x: 78,  y: 258 },
+              backShoulder:  { x: 223, y: 260 },
+              gapitBottom:   { x: 208, y: 900 }
+            },
+            upperArm: {
+              img: assets.bg1FatherUpperArm,
+              w: 190,
+              h: 90,
+              p1: { x: 25, y: 45 },
+              p2: { x: 161, y: 45 },
+              len: 136 * s
+            },
+            frontForearm: {
+              img: assets.bg1FatherFrontForearm,
+              w: 290,
+              h: 220,
+              p1: { x: 30, y: 160 },
+              p2: { x: 174, y: 160 },
+              len: 144 * s
+            },
+            backForearm: {
+              img: assets.bg1FatherBackForearm,
+              w: 270,
+              h: 110,
+              p1: { x: 25, y: 55 },
+              p2: { x: 192, y: 55 },
+              len: 167 * s
+            }
+          };
+        }
+      }
+
+      if (puppetSet === 'bg2') {
+        const s = 0.38;
+        return {
+          spriteScale: s,
+          naturalFacing: -1, // bg2_student_body.png naturally faces LEFT (-1)
+          drawArmsBehindBody: false,
+          rodStyle: 'horn',
+          body: {
+            img: assets.bg2StudentBody,
+            w: 355,
+            h: 900,
+            anchorX: 199,
+            anchorY: 236,
+            frontShoulder: { x: 123, y: 235 },
+            backShoulder:  { x: 328, y: 240 },
+            gapitBottom:   { x: 254, y: 885 }
+          },
+          upperArm: {
+            img: assets.bg2StudentUpperArm,
+            w: 210,
+            h: 70,
+            p1: { x: 25, y: 35 },
+            p2: { x: 176, y: 35 },
+            len: 151 * s
+          },
+          frontForearm: {
+            img: assets.bg2StudentForearm,
+            w: 280,
+            h: 120,
+            p1: { x: 30, y: 60 },
+            p2: { x: 179, y: 60 },
+            len: 149 * s
+          },
+          backForearm: {
+            img: assets.bg2StudentForearm,
+            w: 280,
+            h: 120,
+            p1: { x: 30, y: 60 },
+            p2: { x: 179, y: 60 },
+            len: 149 * s
+          }
+        };
+      }
+
+      if (puppetSet === 'bg3') {
+        const s = 0.39;
+        return {
+          spriteScale: s,
+          naturalFacing: -1, // bg3_speaker_body.png naturally faces LEFT (-1)
+          drawArmsBehindBody: false,
+          rodStyle: 'bamboo',
+          body: {
+            img: assets.bg3SpeakerBody,
+            w: 250,
+            h: 875,
+            anchorX: 151,
+            anchorY: 206,
+            frontShoulder: { x: 83,  y: 208 },
+            backShoulder:  { x: 219, y: 205 },
+            gapitBottom:   { x: 200, y: 858 }
+          },
+          upperArm: {
+            img: assets.bg3SpeakerUpperArm,
+            w: 210,
+            h: 70,
+            p1: { x: 25, y: 35 },
+            p2: { x: 174, y: 35 },
+            len: 149 * s
+          },
+          frontForearm: {
+            img: assets.bg3SpeakerFrontForearm,
+            w: 270,
+            h: 120,
+            p1: { x: 30, y: 60 },
+            p2: { x: 169, y: 60 },
+            len: 139 * s
+          },
+          backForearm: {
+            img: assets.bg3SpeakerBackForearm,
+            w: 320,
+            h: 180,
+            p1: { x: 30, y: 90 },
+            p2: { x: 179, y: 90 },
+            len: 149 * s
+          }
+        };
+      }
+
+      return getPuppetRig('bg1', side);
+    }
+
+    // ============================================================================
+    // 2. PUPPET & BACKGROUND STATE
+    // ============================================================================
+    function createPuppet(side) {
+      const facing = side === 'left' ? 1 : -1;
+      const defaultNx = side === 'left' ? 0.22 : 0.77;
+      const defaultNy = 0.56;
+      return {
+        side,
+        facing,
+        active: false,
+        isFist: false,
+        lastSeenTime: 0,
+        nx: defaultNx,
+        ny: defaultNy,
+        targetNx: defaultNx,
+        targetNy: defaultNy,
+        tilt: -facing * 0.045,
+        targetTilt: -facing * 0.045,
+        frontHandOffset: { x: facing * 82, y: -14 },
+        backHandOffset:  { x: -facing * 12, y: -92 },
+        targetFrontHandOffset: { x: facing * 82, y: -14 },
+        targetBackHandOffset:  { x: -facing * 12, y: -92 },
+        screenAnchor: { x: 0, y: 0 },
+        screenFrontHand: { x: 0, y: 0 },
+        screenBackHand: { x: 0, y: 0 }
+      };
+    }
+
+    const puppets = {
+      left: createPuppet('left'),
+      right: createPuppet('right')
+    };
+
+    const appState = {
+      handsDetectedCount: 0,
+      cameraStarted: false,
+      videoStreaming: false,
+      showCamPreview: true,
+      showcaseMode: true,
+      demoMode: false,
+      reachMultiplier: 1.05,
+      audioPlaying: false,
+      dragTarget: null,
+      latestAssignedHands: [],
+      // Background state (starts at index 0 -> Foto 3: Halaman Sekolah)
+      currentBgIndex: 0,
+      prevBgIndex: 0,
+      bgTransitionStart: 0,
+      bgTransitionDuration: 420,
+      // Double-fist gesture detection state
+      bothFistsConsecutiveFrames: 0,
+      fistLatch: false,
+      lastBgSwitchTime: 0
+    };
+
+    const bgLabelText = document.getElementById('bg-label-text');
+    const bgToast = document.getElementById('bg-toast');
+    const bgNumBtns = document.querySelectorAll('.bg-num-btn');
+    let toastTimer = null;
+
+    function showBgToast(message) {
+      bgToast.textContent = message;
+      bgToast.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        bgToast.classList.remove('show');
+      }, 1800);
+    }
+
+    function setBackgroundIndex(newIndex, triggerSource = '') {
+      const idx = ((newIndex % BG_LIST.length) + BG_LIST.length) % BG_LIST.length;
+      if (idx === appState.currentBgIndex && triggerSource === '') return;
+
+      appState.prevBgIndex = appState.currentBgIndex;
+      appState.currentBgIndex = idx;
+      appState.bgTransitionStart = performance.now();
+
+      const currentBg = BG_LIST[idx];
+      bgLabelText.textContent = currentBg.title;
+
+      bgNumBtns.forEach((btn) => {
+        const bIdx = parseInt(btn.getAttribute('data-bg-idx'), 10);
+        btn.classList.toggle('active', bIdx === idx);
+      });
+
+      const prefix = triggerSource ? `${triggerSource} → ` : '🖼️ Background: ';
+      showBgToast(`${prefix}${currentBg.shortTitle}`);
+    }
+
+    /**
+     * Cycles through the 3 requested photos in order:
+     * 1. Teras Rumah (index 0) -> 2. Halaman Sekolah (index 1) -> 3. Auditorium (index 2)
+     */
+    function cyclePhotoBackgrounds(triggerSource = '✌️ Peace Sign') {
+      const nextIdx = (appState.currentBgIndex + 1) % 3;
+      setBackgroundIndex(nextIdx, triggerSource);
+    }
+
+    document.getElementById('btn-next-bg').addEventListener('click', (e) => {
+      e.stopPropagation();
+      cyclePhotoBackgrounds('🖼️ Ganti Background');
+    });
+
+    bgNumBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-bg-idx'), 10);
+        setBackgroundIndex(idx, '🖼️ Pilih Background');
+      });
+    });
+
+    function getActivePuppetCount() {
+      const currentBg = BG_LIST[appState.currentBgIndex] || BG_LIST[0];
+      return currentBg.defaultPuppetCount || 2;
+    }
+
+    function applyIdleRestTargets(puppet, side) {
+      const f = puppet.facing;
+      const singleMode = getActivePuppetCount() === 1;
+      if (singleMode && side === 'right') {
+        puppet.targetNx = 0.52;
+        puppet.targetNy = 0.62;
+        puppet.targetTilt = 0.02;
+        puppet.targetFrontHandOffset.x = f * 72;
+        puppet.targetFrontHandOffset.y = 24;
+        puppet.targetBackHandOffset.x = -f * 26;
+        puppet.targetBackHandOffset.y = 32;
+        return;
+      }
+      if (side === 'left') {
+        puppet.targetNx = 0.19;
+        puppet.targetNy = 0.79;
+        puppet.targetTilt = -0.04;
+        puppet.targetFrontHandOffset.x = f * 66;
+        puppet.targetFrontHandOffset.y = 32;
+        puppet.targetBackHandOffset.x = -f * 28;
+        puppet.targetBackHandOffset.y = 26;
+      } else {
+        puppet.targetNx = 0.89;
+        puppet.targetNy = 0.86;
+        puppet.targetTilt = 0.04;
+        puppet.targetFrontHandOffset.x = f * 66;
+        puppet.targetFrontHandOffset.y = 32;
+        puppet.targetBackHandOffset.x = -f * 28;
+        puppet.targetBackHandOffset.y = 26;
+      }
+    }
+
+    applyIdleRestTargets(puppets.left, 'left');
+    applyIdleRestTargets(puppets.right, 'right');
+    puppets.left.nx = puppets.left.targetNx;
+    puppets.left.ny = puppets.left.targetNy;
+    puppets.left.frontHandOffset = { ...puppets.left.targetFrontHandOffset };
+    puppets.left.backHandOffset  = { ...puppets.left.targetBackHandOffset };
+    puppets.right.nx = puppets.right.targetNx;
+    puppets.right.ny = puppets.right.targetNy;
+    puppets.right.frontHandOffset = { ...puppets.right.targetFrontHandOffset };
+    puppets.right.backHandOffset  = { ...puppets.right.targetBackHandOffset };
+
+    function solveTwoBoneIK(sx, sy, tx, ty, l1, l2, facing) {
+      let dx = tx - sx;
+      let dy = ty - sy;
+      let dist = Math.hypot(dx, dy);
+      const minDist = Math.abs(l1 - l2) + 2;
+      const maxDist = (l1 + l2) * 0.994;
+
+      if (dist < 1e-4) {
+        dx = facing * minDist;
+        dy = 0;
+        dist = minDist;
+      }
+
+      const clampedDist = Math.max(minDist, Math.min(maxDist, dist));
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const cx = sx + ux * clampedDist;
+      const cy = sy + uy * clampedDist;
+
+      const cosAlpha = Math.max(
+        -1,
+        Math.min(1, (l1 * l1 + clampedDist * clampedDist - l2 * l2) / (2 * l1 * clampedDist))
+      );
+      const alpha = Math.acos(cosAlpha);
+      const baseAngle = Math.atan2(cy - sy, cx - sx);
+
+      const theta1 = baseAngle + facing * alpha;
+      const ex = sx + Math.cos(theta1) * l1;
+      const ey = sy + Math.sin(theta1) * l1;
+
+      const theta2 = Math.atan2(cy - ey, cx - ex);
+      const hx = ex + Math.cos(theta2) * l2;
+      const hy = ey + Math.sin(theta2) * l2;
+
+      return { sx, sy, ex, ey, hx, hy, theta1, theta2 };
+    }
+
+    // ============================================================================
+    // 3. STAGE CANVAS RENDERER (WITH MULTI-BACKGROUND CROSSFADE)
+    // ============================================================================
+    const stageCanvas = document.getElementById('stage-canvas');
+    const stageCtx = stageCanvas.getContext('2d');
+    const puppetBufferCanvas = document.createElement('canvas');
+    const puppetBufferCtx = puppetBufferCanvas.getContext('2d');
+
+    function resizeCanvases() {
+      const rect = stageCanvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      stageCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+      stageCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+      puppetBufferCanvas.width = stageCanvas.width;
+      puppetBufferCanvas.height = stageCanvas.height;
+    }
+
+    window.addEventListener('resize', resizeCanvases);
+    resizeCanvases();
+
+    function drawSingleBackgroundEntry(ctx, bgEntry, W, H) {
+      if (!bgEntry || !bgEntry.loaded) {
+        ctx.fillStyle = '#d8c398';
+        ctx.fillRect(0, 0, W, H);
+        return;
+      }
+
+      const img = bgEntry.img;
+
+      if (bgEntry.type === 'kelir') {
+        const scaleY = H / RIG.refHeight;
+        const topBandSrcH = 92;
+        const botBandSrcY = 468;
+        const botBandSrcH = RIG.refHeight - botBandSrcY;
+        const topBandDstH = topBandSrcH * scaleY;
+        const botBandDstH = botBandSrcH * scaleY;
+
+        ctx.drawImage(
+          img,
+          0, topBandSrcH - 4, RIG.refWidth, botBandSrcY - topBandSrcH + 8,
+          0, topBandDstH - 4 * scaleY, W, H - topBandDstH - botBandDstH + 8 * scaleY
+        );
+        ctx.drawImage(img, 0, 0, RIG.refWidth, topBandSrcH, 0, 0, W, topBandDstH);
+        ctx.drawImage(
+          img,
+          0, botBandSrcY, RIG.refWidth, botBandSrcH,
+          0, H - botBandDstH, W, botBandDstH
+        );
+      } else {
+        // Draw full 16:9 scene photo filling the stage cleanly
+        ctx.drawImage(img, 0, 0, W, H);
+      }
+    }
+
+    function drawStageBackground(ctx, W, H, now) {
+      const currBg = BG_LIST[appState.currentBgIndex];
+      const elapsed = now - appState.bgTransitionStart;
+
+      if (elapsed < appState.bgTransitionDuration && appState.prevBgIndex !== appState.currentBgIndex) {
+        const prevBg = BG_LIST[appState.prevBgIndex];
+        const alpha = Math.max(0, Math.min(1, elapsed / appState.bgTransitionDuration));
+        // Smooth ease-in-out
+        const smoothAlpha = alpha * alpha * (3 - 2 * alpha);
+
+        drawSingleBackgroundEntry(ctx, prevBg, W, H);
+        ctx.save();
+        ctx.globalAlpha = smoothAlpha;
+        drawSingleBackgroundEntry(ctx, currBg, W, H);
+        ctx.restore();
+      } else {
+        drawSingleBackgroundEntry(ctx, currBg, W, H);
+      }
+    }
+
+    function drawArmSprite(ctx, img, spec, x, y, theta, scale, spriteScale, facing) {
+      if (!img || !img.complete || img.naturalWidth === 0) return;
+      const s = scale * spriteScale;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(theta);
+      ctx.scale(s, facing * s);
+      ctx.drawImage(img, -spec.p1.x, -spec.p1.y, spec.w, spec.h);
+      ctx.restore();
+    }
+
+    function drawStick(ctx, x1, y1, x2, y2, topWidth, bottomWidth, scale, withRings = false, rodStyle = 'horn') {
+      ctx.save();
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const len = Math.hypot(x2 - x1, y2 - y1);
+
+      ctx.translate(x1, y1);
+      ctx.rotate(angle);
+
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.32)';
+      ctx.shadowBlur = 3 * scale;
+      ctx.shadowOffsetX = 1 * scale;
+      ctx.shadowOffsetY = 1 * scale;
+
+      ctx.beginPath();
+      ctx.moveTo(0, -topWidth * 0.5);
+      ctx.lineTo(len, -bottomWidth * 0.5);
+      ctx.lineTo(len, bottomWidth * 0.5);
+      ctx.lineTo(0, topWidth * 0.5);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, -bottomWidth * 0.5, 0, bottomWidth * 0.5);
+      if (rodStyle === 'bamboo') {
+        grad.addColorStop(0, '#5c3d18');
+        grad.addColorStop(0.4, '#b08346');
+        grad.addColorStop(1, '#4e3313');
+      } else {
+        grad.addColorStop(0, '#140b05');
+        grad.addColorStop(0.35, '#2d1b0e');
+        grad.addColorStop(1, '#120a04');
+      }
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, topWidth * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = rodStyle === 'bamboo' ? '#704c20' : '#1b1008';
+      ctx.fill();
+
+      if (withRings) {
+        ctx.shadowColor = 'transparent';
+        ctx.fillStyle = 'rgba(198, 178, 145, 0.75)';
+        const ringPositions = [8 * scale, 48 * scale];
+        for (const rx of ringPositions) {
+          if (rx < len) {
+            ctx.fillRect(rx, -topWidth * 0.52, 2.5 * scale, topWidth * 1.04);
+          }
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function renderPuppet(mainCtx, puppet, W, H) {
+      if (!assets.ready) return;
+
+      const currentBg = BG_LIST[appState.currentBgIndex] || BG_LIST[0];
+      const rig = getPuppetRig(currentBg.puppetSet || 'classic', puppet.side);
+      const bSpec = rig.body;
+      if (!bSpec.img || !bSpec.img.complete || bSpec.img.naturalWidth === 0) return;
+
+      const scale = H / RIG.refHeight;
+      const s = scale * rig.spriteScale;
+      const f = puppet.facing;
+      const flipX = f === rig.naturalFacing ? 1 : -1;
+
+      const anchorX = puppet.nx * W;
+      const anchorY = puppet.ny * H;
+      puppet.screenAnchor.x = anchorX;
+      puppet.screenAnchor.y = anchorY;
+
+      function bodyLocalToWorld(lx, ly) {
+        const dx = (lx - bSpec.anchorX) * flipX * s;
+        const dy = (ly - bSpec.anchorY) * s;
+        const cosT = Math.cos(puppet.tilt);
+        const sinT = Math.sin(puppet.tilt);
+        return {
+          x: anchorX + dx * cosT - dy * sinT,
+          y: anchorY + dx * sinT + dy * cosT
+        };
+      }
+
+      const frontShoulderWorld = bodyLocalToWorld(bSpec.frontShoulder.x, bSpec.frontShoulder.y);
+      const backShoulderWorld  = bodyLocalToWorld(bSpec.backShoulder.x,  bSpec.backShoulder.y);
+      const gapitFeetWorld     = bodyLocalToWorld(bSpec.gapitBottom.x,   bSpec.gapitBottom.y);
+
+      const frontTargetWorld = {
+        x: frontShoulderWorld.x + puppet.frontHandOffset.x * scale,
+        y: frontShoulderWorld.y + puppet.frontHandOffset.y * scale
+      };
+      const backTargetWorld = {
+        x: backShoulderWorld.x + puppet.backHandOffset.x * scale,
+        y: backShoulderWorld.y + puppet.backHandOffset.y * scale
+      };
+
+      const l1 = rig.upperArm.len * scale;
+      const l2Front = rig.frontForearm.len * scale;
+      const l2Back  = rig.backForearm.len * scale;
+
+      const backIK = solveTwoBoneIK(
+        backShoulderWorld.x, backShoulderWorld.y,
+        backTargetWorld.x, backTargetWorld.y,
+        l1, l2Back, f
+      );
+      const frontIK = solveTwoBoneIK(
+        frontShoulderWorld.x, frontShoulderWorld.y,
+        frontTargetWorld.x, frontTargetWorld.y,
+        l1, l2Front, f
+      );
+
+      puppet.screenFrontHand.x = frontIK.hx;
+      puppet.screenFrontHand.y = frontIK.hy;
+      puppet.screenBackHand.x  = backIK.hx;
+      puppet.screenBackHand.y  = backIK.hy;
+
+      const pCtx = puppetBufferCtx;
+      pCtx.clearRect(0, 0, W, H);
+
+      const gapitDirX = gapitFeetWorld.x - anchorX;
+      const gapitDirY = gapitFeetWorld.y - anchorY;
+      const gapitLen = Math.hypot(gapitDirX, gapitDirY) || 1;
+      const extDist = Math.max(H - gapitFeetWorld.y + 80 * scale, 180 * scale);
+      const gapitBottomX = gapitFeetWorld.x + (gapitDirX / gapitLen) * extDist;
+      const gapitBottomY = gapitFeetWorld.y + (gapitDirY / gapitLen) * extDist;
+
+      drawStick(
+        pCtx,
+        gapitFeetWorld.x, gapitFeetWorld.y - 3 * scale,
+        gapitBottomX, gapitBottomY,
+        6.2 * scale, 8.5 * scale,
+        scale,
+        true,
+        'horn'
+      );
+
+      function drawBodySprite() {
+        pCtx.save();
+        pCtx.translate(anchorX, anchorY);
+        pCtx.rotate(puppet.tilt);
+        pCtx.scale(flipX * s, s);
+        pCtx.drawImage(bSpec.img, -bSpec.anchorX, -bSpec.anchorY, bSpec.w, bSpec.h);
+        pCtx.restore();
+      }
+
+      if (!rig.drawArmsBehindBody) {
+        drawBodySprite();
+      }
+
+      drawArmSprite(pCtx, rig.upperArm.img, rig.upperArm, backIK.sx, backIK.sy, backIK.theta1, scale, rig.spriteScale, f);
+      drawArmSprite(pCtx, rig.backForearm.img, rig.backForearm, backIK.ex, backIK.ey, backIK.theta2, scale, rig.spriteScale, f);
+
+      const backRodBottomX = backIK.hx + (anchorX - backIK.hx) * 0.26;
+      const backRodBottomY = H + 50 * scale;
+      drawStick(pCtx, backIK.hx, backIK.hy, backRodBottomX, backRodBottomY, 3.6 * scale, 4.6 * scale, scale, false, rig.rodStyle);
+
+      drawArmSprite(pCtx, rig.upperArm.img, rig.upperArm, frontIK.sx, frontIK.sy, frontIK.theta1, scale, rig.spriteScale, f);
+      drawArmSprite(pCtx, rig.frontForearm.img, rig.frontForearm, frontIK.ex, frontIK.ey, frontIK.theta2, scale, rig.spriteScale, f);
+
+      if (rig.drawArmsBehindBody) {
+        drawBodySprite();
+      }
+
+      const frontRodBottomX = frontIK.hx + (anchorX - frontIK.hx) * 0.26;
+      const frontRodBottomY = H + 50 * scale;
+      drawStick(pCtx, frontIK.hx, frontIK.hy, frontRodBottomX, frontRodBottomY, 3.7 * scale, 4.7 * scale, scale, false, rig.rodStyle);
+
+      mainCtx.save();
+      const radialFactor = (anchorX - W * 0.5) / (W * 0.5);
+      mainCtx.shadowColor = 'rgba(22, 13, 5, 0.76)';
+      mainCtx.shadowBlur = 11 * scale;
+      mainCtx.shadowOffsetX = radialFactor * 18 * scale;
+      mainCtx.shadowOffsetY = 9 * scale;
+      mainCtx.drawImage(puppetBufferCanvas, 0, 0);
+      mainCtx.restore();
+    }
+
+    // ============================================================================
+    // 4. FIST DETECTION ("GENGGAM DUA-DUANYA") & WEBCAM SKELETON RENDERER
+    // ============================================================================
+    const videoEl = document.getElementById('input-video');
+    const camCanvas = document.getElementById('cam-canvas');
+    const camCtx = camCanvas.getContext('2d');
+    const statusPill = document.getElementById('status-pill');
+    const statusText = document.getElementById('status-text');
+    const camPromptOverlay = document.getElementById('cam-prompt-overlay');
+    const camPromptMsg = document.getElementById('cam-prompt-msg');
+    const btnRetryCam = document.getElementById('btn-retry-cam');
+
+    const CUSTOM_HAND_BONES = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [0, 9], [9, 10], [10, 11], [11, 12],
+      [0, 13], [13, 14], [14, 15], [15, 16],
+      [0, 17], [17, 18], [18, 19], [19, 20],
+      [5, 9], [9, 13], [13, 17]
+    ];
+
+    function getMirroredPalmCenter(landmarks) {
+      const indices = [0, 5, 9, 13, 17];
+      let sx = 0;
+      let sy = 0;
+      for (const idx of indices) {
+        sx += 1.0 - landmarks[idx].x;
+        sy += landmarks[idx].y;
+      }
+      return { x: sx / indices.length, y: sy / indices.length };
+    }
+
+    /**
+     * Detects if a hand is showing a Peace Sign ("✌️" / V-Sign):
+     * - Index finger (8) AND Middle finger (12) are EXTENDED
+     * - Ring finger (16) AND Pinky finger (20) are CURLED
+     */
+    function isHandPeaceSign(landmarks) {
+      const wrist = landmarks[0];
+      const palm = {
+        x: (landmarks[0].x + landmarks[5].x + landmarks[9].x + landmarks[13].x + landmarks[17].x) / 5,
+        y: (landmarks[0].y + landmarks[5].y + landmarks[9].y + landmarks[13].y + landmarks[17].y) / 5
+      };
+      const palmScale = Math.max(0.04, Math.hypot(landmarks[9].x - wrist.x, landmarks[9].y - wrist.y));
+
+      const dIndexTip = Math.hypot(landmarks[8].x - wrist.x, landmarks[8].y - wrist.y);
+      const dIndexPip = Math.hypot(landmarks[6].x - wrist.x, landmarks[6].y - wrist.y);
+      const dIndexPalm = Math.hypot(landmarks[8].x - palm.x, landmarks[8].y - palm.y);
+
+      const dMidTip = Math.hypot(landmarks[12].x - wrist.x, landmarks[12].y - wrist.y);
+      const dMidPip = Math.hypot(landmarks[10].x - wrist.x, landmarks[10].y - wrist.y);
+      const dMidPalm = Math.hypot(landmarks[12].x - palm.x, landmarks[12].y - palm.y);
+
+      const dRingTip = Math.hypot(landmarks[16].x - wrist.x, landmarks[16].y - wrist.y);
+      const dRingPip = Math.hypot(landmarks[14].x - wrist.x, landmarks[14].y - wrist.y);
+
+      const dPinkyTip = Math.hypot(landmarks[20].x - wrist.x, landmarks[20].y - wrist.y);
+      const dPinkyPip = Math.hypot(landmarks[18].x - wrist.x, landmarks[18].y - wrist.y);
+
+      const indexExtended  = (dIndexTip > dIndexPip * 1.11) && (dIndexPalm > palmScale * 0.92);
+      const middleExtended = (dMidTip > dMidPip * 1.11) && (dMidPalm > palmScale * 0.92);
+      const ringCurled     = (dRingTip < dRingPip * 1.09) || (dRingTip < dMidTip * 0.80);
+      const pinkyCurled    = (dPinkyTip < dPinkyPip * 1.11) || (dPinkyTip < dMidTip * 0.78);
+
+      return indexExtended && middleExtended && ringCurled && pinkyCurled;
+    }
+
+    function buildDemoHandLandmarks(side, now) {
+      const t = now * 0.001;
+      const isLeft = side === 'left';
+      const f = isLeft ? 1 : -1;
+      const phase = isLeft ? 0 : Math.PI * 0.85;
+
+      const cx = isLeft ? 0.28 + Math.sin(t * 1.1 + phase) * 0.02 : 0.72 + Math.sin(t * 1.1 + phase) * 0.02;
+      const cy = 0.66 + Math.sin(t * 2.0 + phase) * 0.04;
+
+      const wrist = { x: cx, y: cy + 0.14 };
+      const mcp5  = { x: cx - f * 0.045, y: cy - 0.04 };
+      const mcp9  = { x: cx - f * 0.015, y: cy - 0.05 };
+      const mcp13 = { x: cx + f * 0.015, y: cy - 0.042 };
+      const mcp17 = { x: cx + f * 0.042, y: cy - 0.028 };
+
+      const idxWave = Math.sin(t * 3.0 + phase) * 0.025;
+      const idx6 = { x: mcp5.x - f * 0.01, y: mcp5.y - 0.06 };
+      const idx7 = { x: idx6.x - f * 0.01, y: idx6.y - 0.05 };
+      const idx8 = { x: idx7.x - f * 0.008 + idxWave, y: idx7.y - 0.045 };
+
+      const thmWave = Math.cos(t * 4.4 + phase) * 0.045;
+      const cmc1 = { x: cx + f * 0.02, y: cy + 0.08 };
+      const mcp2 = { x: cx + f * 0.055, y: cy + 0.02 };
+      const ip3  = { x: cx + f * 0.095, y: cy - 0.015 + thmWave * 0.6 };
+      const tip4 = { x: cx + f * 0.135, y: cy - 0.04 + thmWave };
+
+      const mid10 = { x: mcp9.x, y: mcp9.y - 0.025 };
+      const mid11 = { x: mcp9.x + f * 0.01, y: mcp9.y + 0.015 };
+      const mid12 = { x: mcp9.x + f * 0.005, y: mcp9.y + 0.045 };
+
+      const rng14 = { x: mcp13.x, y: mcp13.y - 0.02 };
+      const rng15 = { x: mcp13.x + f * 0.01, y: mcp13.y + 0.018 };
+      const rng16 = { x: mcp13.x + f * 0.005, y: mcp13.y + 0.048 };
+
+      const pnk18 = { x: mcp17.x, y: mcp17.y - 0.015 };
+      const pnk19 = { x: mcp17.x + f * 0.008, y: mcp17.y + 0.02 };
+      const pnk20 = { x: mcp17.x + f * 0.004, y: mcp17.y + 0.048 };
+
+      const mirroredPts = [
+        wrist,
+        cmc1, mcp2, ip3, tip4,
+        mcp5, idx6, idx7, idx8,
+        mcp9, mid10, mid11, mid12,
+        mcp13, rng14, rng15, rng16,
+        mcp17, pnk18, pnk19, pnk20
+      ];
+
+      return mirroredPts.map(pt => ({ x: 1.0 - pt.x, y: pt.y, z: 0 }));
+    }
+
+    function drawSingleHandSkeleton(ctx, lm, side, isFist, cw, ch) {
+      const isLeft = side === 'left';
+      const baseColor = isLeft ? '#ebb865' : '#e2e8f0';
+      const strokeColor = isFist ? '#34d399' : baseColor;
+      const glowColor   = isFist
+        ? 'rgba(52, 211, 153, 0.65)'
+        : (isLeft ? 'rgba(235, 184, 101, 0.5)' : 'rgba(226, 232, 240, 0.45)');
+
+      ctx.save();
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 2.1;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 4;
+
+      for (const [i, j] of CUSTOM_HAND_BONES) {
+        const p1 = lm[i];
+        const p2 = lm[j];
+        ctx.beginPath();
+        ctx.moveTo((1.0 - p1.x) * cw, p1.y * ch);
+        ctx.lineTo((1.0 - p2.x) * cw, p2.y * ch);
+        ctx.stroke();
+      }
+
+      const palm = getMirroredPalmCenter(lm);
+      ctx.beginPath();
+      ctx.arc(palm.x * cw, palm.y * ch, isFist ? 12 : 10.5, 0, Math.PI * 2);
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = isFist ? 2.6 : 2.2;
+      if (isFist) {
+        ctx.fillStyle = 'rgba(52, 211, 153, 0.22)';
+        ctx.fill();
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = strokeColor;
+      for (let idx = 0; idx < lm.length; idx++) {
+        if (idx === 4 || idx === 8) continue;
+        const pt = lm[idx];
+        ctx.beginPath();
+        ctx.arc((1.0 - pt.x) * cw, pt.y * ch, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const highlightTips = isFist ? [8, 12] : [4, 8];
+      for (const tipIdx of highlightTips) {
+        const tip = lm[tipIdx];
+        const tx = (1.0 - tip.x) * cw;
+        const ty = tip.y * ch;
+
+        ctx.save();
+        ctx.shadowColor = isFist ? '#10b981' : '#ff3b6b';
+        ctx.shadowBlur = 9;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 5.2, 0, Math.PI * 2);
+        ctx.fillStyle = isFist ? '#34d399' : '#ff5e7e';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(tx, ty, 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = isFist ? '#d1fae5' : '#ffb3c6';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function renderCameraCanvas(now) {
+      const cw = camCanvas.width;
+      const ch = camCanvas.height;
+
+      camCtx.save();
+      camCtx.clearRect(0, 0, cw, ch);
+
+      if (appState.videoStreaming && videoEl.readyState >= 2) {
+        camCtx.save();
+        camCtx.translate(cw, 0);
+        camCtx.scale(-1, 1);
+        camCtx.drawImage(videoEl, 0, 0, cw, ch);
+        camCtx.restore();
+      } else {
+        const bgGrad = camCtx.createRadialGradient(cw * 0.5, ch * 0.45, 10, cw * 0.5, ch * 0.5, cw * 0.75);
+        bgGrad.addColorStop(0, '#362d26');
+        bgGrad.addColorStop(1, '#1a1512');
+        camCtx.fillStyle = bgGrad;
+        camCtx.fillRect(0, 0, cw, ch);
+      }
+
+      if (appState.latestAssignedHands.length > 0) {
+        for (const item of appState.latestAssignedHands) {
+          drawSingleHandSkeleton(camCtx, item.landmarks, item.side, item.isFist, cw, ch);
+        }
+      } else if (appState.demoMode && !appState.videoStreaming) {
+        drawSingleHandSkeleton(camCtx, buildDemoHandLandmarks('left', now), 'left', false, cw, ch);
+        drawSingleHandSkeleton(camCtx, buildDemoHandLandmarks('right', now), 'right', false, cw, ch);
+      }
+
+      camCtx.restore();
+    }
+
+    // ============================================================================
+    // 5. SMOOTHING, DEMO ANIMATION & MAIN 60FPS RENDER LOOP
+    // ============================================================================
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function updatePuppets(now) {
+      const dt = 0.22;
+      const tSec = now * 0.001;
+
+      for (const side of ['left', 'right']) {
+        const p = puppets[side];
+        const f = p.facing;
+        const isControlledByHand = p.active && (now - p.lastSeenTime < 450);
+        const isDragged = appState.dragTarget && appState.dragTarget.puppet === p;
+
+        if (!isControlledByHand && !isDragged) {
+          if (appState.demoMode) {
+            const phase = side === 'left' ? 0 : Math.PI * 0.85;
+            const singleMode = getActivePuppetCount() === 1;
+            p.targetNx = singleMode
+              ? 0.52 + Math.sin(tSec * 1.1) * 0.06
+              : (side === 'left'
+                  ? 0.22 + Math.sin(tSec * 1.1 + phase) * 0.02
+                  : 0.77 + Math.sin(tSec * 1.1 + phase) * 0.02);
+            p.targetNy = 0.55 + Math.sin(tSec * 2.0 + phase) * 0.045;
+            p.targetTilt = -f * 0.045 + Math.sin(tSec * 1.6 + phase) * 0.03;
+
+            p.targetFrontHandOffset.x = f * (82 + Math.sin(tSec * 3.8 + phase) * 10);
+            p.targetFrontHandOffset.y = -12 + Math.cos(tSec * 4.4 + phase) * 24;
+
+            p.targetBackHandOffset.x = -f * 16 + Math.cos(tSec * 2.4 + phase) * 8;
+            p.targetBackHandOffset.y = singleMode
+              ? 35 + Math.sin(tSec * 3.0 + phase) * 14
+              : -93 + Math.sin(tSec * 3.0 + phase) * 8;
+          } else {
+            applyIdleRestTargets(p, side);
+          }
+        }
+
+        const smooth = isControlledByHand || isDragged ? dt : 0.09;
+        p.nx = lerp(p.nx, p.targetNx, smooth);
+        p.ny = lerp(p.ny, p.targetNy, smooth);
+        p.tilt = lerp(p.tilt, p.targetTilt, smooth);
+
+        p.frontHandOffset.x = lerp(p.frontHandOffset.x, p.targetFrontHandOffset.x, smooth * 1.25);
+        p.frontHandOffset.y = lerp(p.frontHandOffset.y, p.targetFrontHandOffset.y, smooth * 1.25);
+        p.backHandOffset.x  = lerp(p.backHandOffset.x,  p.targetBackHandOffset.x,  smooth * 1.25);
+        p.backHandOffset.y  = lerp(p.backHandOffset.y,  p.targetBackHandOffset.y,  smooth * 1.25);
+      }
+    }
+
+    function animate(now) {
+      updatePuppets(now);
+
+      const W = stageCanvas.width;
+      const H = stageCanvas.height;
+
+      stageCtx.clearRect(0, 0, W, H);
+      drawStageBackground(stageCtx, W, H, now);
+
+      if (getActivePuppetCount() === 1) {
+        renderPuppet(stageCtx, puppets.right, W, H);
+      } else {
+        renderPuppet(stageCtx, puppets.left, W, H);
+        renderPuppet(stageCtx, puppets.right, W, H);
+      }
+
+      renderCameraCanvas(now);
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+
+    // ============================================================================
+    // 6. MEDIAPIPE HAND TRACKING & PEACE-SIGN ("✌️") BACKGROUND SWITCHER
+    // ============================================================================
+    function updateStatusPill(handCount, peaceDetected = false) {
+      const effectiveCount = appState.demoMode ? 2 : handCount;
+      statusPill.classList.toggle('fist-active', peaceDetected);
+
+      if (peaceDetected) {
+        statusPill.classList.remove('active-two');
+        statusText.textContent = '✌️ Peace Sign terdeteksi · Background ganti!';
+      } else if (effectiveCount >= 1) {
+        statusPill.classList.add('active-two');
+        statusText.textContent = 'Two puppets · one per hand';
+      } else {
+        statusPill.classList.remove('active-two');
+        statusText.textContent = 'Camera on · raise both hands';
+      }
+    }
+
+    function applyHandToPuppet(landmarks, puppet, fistState, now) {
+      const f = puppet.facing;
+      const palm = getMirroredPalmCenter(landmarks);
+
+      const wrist = { x: 1.0 - landmarks[0].x, y: landmarks[0].y };
+      const midMcp = { x: 1.0 - landmarks[9].x, y: landmarks[9].y };
+      const handSize = Math.max(0.055, Math.hypot(midMcp.x - wrist.x, midMcp.y - wrist.y));
+
+      if (puppet.side === 'left') {
+        const clampedX = Math.max(0.08, Math.min(0.48, palm.x));
+        puppet.targetNx = 0.10 + ((clampedX - 0.08) / 0.40) * 0.30;
+      } else {
+        const clampedX = Math.max(0.52, Math.min(0.92, palm.x));
+        puppet.targetNx = 0.60 + ((clampedX - 0.52) / 0.40) * 0.28;
+      }
+
+      const clampedY = Math.max(0.28, Math.min(0.88, palm.y));
+      puppet.targetNy = 0.30 + ((clampedY - 0.28) / 0.60) * 0.44;
+
+      const handTilt = Math.atan2(midMcp.x - wrist.x, -(midMcp.y - wrist.y));
+      puppet.targetTilt = -f * 0.045 + Math.max(-0.14, Math.min(0.14, handTilt * 0.18));
+
+      // Keep puppet arms gracefully posed when clenching a fist to switch background
+      if (!fistState) {
+        const thumbTip = { x: 1.0 - landmarks[4].x, y: landmarks[4].y };
+        const indexTip = { x: 1.0 - landmarks[8].x, y: landmarks[8].y };
+
+        const vThumb = {
+          x: (thumbTip.x - palm.x) / handSize,
+          y: (thumbTip.y - palm.y) / handSize
+        };
+        const vIndex = {
+          x: (indexTip.x - palm.x) / handSize,
+          y: (indexTip.y - palm.y) / handSize
+        };
+
+        let vFront, vBack;
+        if (vThumb.x * f >= vIndex.x * f) {
+          vFront = vThumb;
+          vBack  = vIndex;
+        } else {
+          vFront = vIndex;
+          vBack  = vThumb;
+        }
+
+        const reach = 56 * appState.reachMultiplier;
+
+        puppet.targetFrontHandOffset.x = vFront.x * reach + f * 14;
+        puppet.targetFrontHandOffset.y = vFront.y * reach + 8;
+
+        puppet.targetBackHandOffset.x  = vBack.x * reach;
+        puppet.targetBackHandOffset.y  = vBack.y * reach + 8;
+      }
+
+      puppet.isFist = fistState;
+      puppet.active = true;
+      puppet.lastSeenTime = now;
+    }
+
+    function onHandResults(results) {
+      const now = performance.now();
+      const rawHands = results.multiHandLandmarks || [];
+
+      const detected = rawHands.map((landmarks) => ({
+        landmarks,
+        palm: getMirroredPalmCenter(landmarks),
+        isPeace: isHandPeaceSign(landmarks)
+      }));
+
+      detected.sort((a, b) => a.palm.x - b.palm.x);
+
+      const assignedHands = [];
+      let peaceTriggeredNow = false;
+
+      if (detected.length >= 2) {
+        const leftH = detected[0];
+        const rightH = detected[detected.length - 1];
+
+        if (getActivePuppetCount() === 1) {
+          // Single main character on stage (Bg 2 & Bg 3):
+          // Both hands control the single character (puppets.right)!
+          // Midpoint of both palms moves her body across the entire stage;
+          // Left hand moves her front/left pointing arm, Right hand moves her back/right arm!
+          const p = puppets.right;
+          const f = p.facing; // -1 (faces left)
+          const midPalmX = (leftH.palm.x + rightH.palm.x) * 0.5;
+          const midPalmY = (leftH.palm.y + rightH.palm.y) * 0.5;
+          p.targetNx = 0.16 + Math.max(0.08, Math.min(0.92, midPalmX)) * 0.68;
+          p.targetNy = 0.28 + Math.max(0.25, Math.min(0.88, midPalmY)) * 0.44;
+
+          if (!leftH.isPeace && !rightH.isPeace) {
+            const lWrist = { x: 1.0 - leftH.landmarks[0].x, y: leftH.landmarks[0].y };
+            const lMcp = { x: 1.0 - leftH.landmarks[9].x, y: leftH.landmarks[9].y };
+            const lSize = Math.max(0.055, Math.hypot(lMcp.x - lWrist.x, lMcp.y - lWrist.y));
+            const lIndex = { x: 1.0 - leftH.landmarks[8].x, y: leftH.landmarks[8].y };
+
+            const rWrist = { x: 1.0 - rightH.landmarks[0].x, y: rightH.landmarks[0].y };
+            const rMcp = { x: 1.0 - rightH.landmarks[9].x, y: rightH.landmarks[9].y };
+            const rSize = Math.max(0.055, Math.hypot(rMcp.x - rWrist.x, rMcp.y - rWrist.y));
+            const rIndex = { x: 1.0 - rightH.landmarks[8].x, y: rightH.landmarks[8].y };
+
+            const reach = 56 * appState.reachMultiplier;
+            p.targetFrontHandOffset.x = ((lIndex.x - leftH.palm.x) / lSize) * reach + f * 18;
+            p.targetFrontHandOffset.y = ((lIndex.y - leftH.palm.y) / lSize) * reach + 10;
+            p.targetBackHandOffset.x  = ((rIndex.x - rightH.palm.x) / rSize) * reach - f * 12;
+            p.targetBackHandOffset.y  = ((rIndex.y - rightH.palm.y) / rSize) * reach + 14;
+          }
+          p.active = true;
+          p.lastSeenTime = now;
+          puppets.left.active = false;
+        } else {
+          applyHandToPuppet(leftH.landmarks, puppets.left, leftH.isPeace, now);
+          applyHandToPuppet(rightH.landmarks, puppets.right, rightH.isPeace, now);
+          puppets.left.active = true;
+          puppets.right.active = true;
+        }
+
+        assignedHands.push({ landmarks: leftH.landmarks, side: 'left', isFist: leftH.isPeace });
+        assignedHands.push({ landmarks: rightH.landmarks, side: 'right', isFist: rightH.isPeace });
+
+        // Trigger if EITHER hand or BOTH hands show a Peace Sign (✌️)
+        peaceTriggeredNow = leftH.isPeace || rightH.isPeace;
+      } else if (detected.length === 1) {
+        const single = detected[0];
+        if (getActivePuppetCount() === 1) {
+          applyHandToPuppet(single.landmarks, puppets.right, single.isPeace, now);
+          // Allow single hand to move her across the full stage width [0.18 .. 0.82]
+          const clampedX = Math.max(0.10, Math.min(0.90, single.palm.x));
+          puppets.right.targetNx = 0.16 + ((clampedX - 0.10) / 0.80) * 0.68;
+          puppets.left.active = false;
+          assignedHands.push({ landmarks: single.landmarks, side: 'right', isFist: single.isPeace });
+        } else if (single.palm.x < 0.5) {
+          applyHandToPuppet(single.landmarks, puppets.left, single.isPeace, now);
+          puppets.right.active = false;
+          assignedHands.push({ landmarks: single.landmarks, side: 'left', isFist: single.isPeace });
+        } else {
+          applyHandToPuppet(single.landmarks, puppets.right, single.isPeace, now);
+          puppets.left.active = false;
+          assignedHands.push({ landmarks: single.landmarks, side: 'right', isFist: single.isPeace });
+        }
+        peaceTriggeredNow = single.isPeace;
+      } else {
+        puppets.left.active = false;
+        puppets.right.active = false;
+      }
+
+      // Peace Sign ("✌️" on one or both hands) edge trigger with debounce
+      if (peaceTriggeredNow) {
+        appState.bothFistsConsecutiveFrames++;
+        if (
+          appState.bothFistsConsecutiveFrames >= 3 &&
+          !appState.fistLatch &&
+          now - appState.lastBgSwitchTime > 850
+        ) {
+          appState.fistLatch = true;
+          appState.lastBgSwitchTime = now;
+          cyclePhotoBackgrounds('✌️ Peace Sign');
+        }
+      } else {
+        appState.bothFistsConsecutiveFrames = 0;
+        appState.fistLatch = false;
+      }
+
+      appState.handsDetectedCount = detected.length;
+      appState.latestAssignedHands = assignedHands;
+      updateStatusPill(detected.length, peaceTriggeredNow);
+    }
+
+    let mpHandsInstance = null;
+    let isSendingFrame = false;
+
+    async function startWebcamAndAI() {
+      try {
+        camPromptOverlay.classList.add('hidden');
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Browser tidak mendukung akses webcam.');
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          },
+          audio: false
+        });
+
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        appState.videoStreaming = true;
+        appState.cameraStarted = true;
+        camPromptOverlay.classList.add('hidden');
+
+        if (!mpHandsInstance) {
+          mpHandsInstance = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+
+          mpHandsInstance.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
+          });
+
+          mpHandsInstance.onResults(onHandResults);
+        }
+
+        async function processVideoFrame() {
+          if (appState.videoStreaming && videoEl.readyState >= 2 && !isSendingFrame) {
+            isSendingFrame = true;
+            try {
+              await mpHandsInstance.send({ image: videoEl });
+            } catch (_) {}
+            isSendingFrame = false;
+          }
+          requestAnimationFrame(processVideoFrame);
+        }
+
+        requestAnimationFrame(processVideoFrame);
+        updateStatusPill(0);
+      } catch (err) {
+        console.warn('Camera access unavailable or awaiting permission:', err);
+        if (!appState.demoMode) {
+          camPromptOverlay.classList.remove('hidden');
+          camPromptMsg.textContent = 'Klik tombol di bawah untuk mengizinkan kamera & menampilkan gesture AI tangan Anda';
+        }
+        updateStatusPill(appState.handsDetectedCount);
+      }
+    }
+
+    btnRetryCam.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startWebcamAndAI();
+    });
+
+    startWebcamAndAI();
+
+    // ============================================================================
+    // 7. DIRECT MOUSE / TOUCH INTERACTION ON STAGE
+    // ============================================================================
+    function getStagePointerPos(e) {
+      const rect = stageCanvas.getBoundingClientRect();
+      const dpr = stageCanvas.width / rect.width;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * dpr,
+        y: (clientY - rect.top) * dpr
+      };
+    }
+
+    stageCanvas.addEventListener('pointerdown', (e) => {
+      const pos = getStagePointerPos(e);
+      const scale = stageCanvas.height / RIG.refHeight;
+      const hitRadius = 55 * scale;
+
+      let best = null;
+      let bestDist = Infinity;
+
+      for (const p of [puppets.left, puppets.right]) {
+        const dFront = Math.hypot(pos.x - p.screenFrontHand.x, pos.y - p.screenFrontHand.y);
+        if (dFront < hitRadius && dFront < bestDist) {
+          bestDist = dFront;
+          best = { puppet: p, part: 'front' };
+        }
+        const dBack = Math.hypot(pos.x - p.screenBackHand.x, pos.y - p.screenBackHand.y);
+        if (dBack < hitRadius && dBack < bestDist) {
+          bestDist = dBack;
+          best = { puppet: p, part: 'back' };
+        }
+        const dBody = Math.hypot(pos.x - p.screenAnchor.x, pos.y - (p.screenAnchor.y + 50 * scale));
+        if (dBody < hitRadius * 1.6 && dBody < bestDist) {
+          bestDist = dBody;
+          best = { puppet: p, part: 'body' };
+        }
+      }
+
+      if (best) {
+        appState.dragTarget = best;
+        best.puppet.active = true;
+        best.puppet.lastSeenTime = performance.now() + 60000;
+        updateStatusPill(2);
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!appState.dragTarget) return;
+      const pos = getStagePointerPos(e);
+      const W = stageCanvas.width;
+      const H = stageCanvas.height;
+      const scale = H / RIG.refHeight;
+      const { puppet, part } = appState.dragTarget;
+      puppet.lastSeenTime = performance.now() + 60000;
+
+      if (part === 'body') {
+        puppet.targetNx = Math.max(0.08, Math.min(0.92, pos.x / W));
+        puppet.targetNy = Math.max(0.25, Math.min(0.85, (pos.y - 30 * scale) / H));
+      } else if (part === 'front') {
+        puppet.targetFrontHandOffset.x = (pos.x - puppet.screenAnchor.x) / scale;
+        puppet.targetFrontHandOffset.y = (pos.y - puppet.screenAnchor.y) / scale;
+      } else if (part === 'back') {
+        puppet.targetBackHandOffset.x = (pos.x - puppet.screenAnchor.x) / scale;
+        puppet.targetBackHandOffset.y = (pos.y - puppet.screenAnchor.y) / scale;
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      if (appState.dragTarget) {
+        appState.dragTarget.puppet.lastSeenTime = performance.now() + 2500;
+        appState.dragTarget = null;
+      }
+    });
+
+    // ============================================================================
+    // 8. AUDIO (WEB AUDIO API) & SETTINGS UI CONTROLS
+    // ============================================================================
+    const audioBtn = document.getElementById('audio-btn');
+    const iconMuted = document.getElementById('icon-muted');
+    const iconUnmuted = document.getElementById('icon-unmuted');
+
+    let audioCtx = null;
+    let gamelanBuffer = null;
+    let gamelanSource = null;
+    let audioLoading = false;
+
+    async function setAudioPlaying(play) {
+      if (play) {
+        try {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+          }
+          if (!gamelanBuffer && !audioLoading) {
+            audioLoading = true;
+            const resp = await fetch('./assets/bgm.m4a');
+            const arr = await resp.arrayBuffer();
+            gamelanBuffer = await audioCtx.decodeAudioData(arr);
+            audioLoading = false;
+          }
+          if (gamelanBuffer) {
+            if (gamelanSource) {
+              try { gamelanSource.stop(); } catch (_) {}
+            }
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.75;
+            gainNode.connect(audioCtx.destination);
+
+            gamelanSource = audioCtx.createBufferSource();
+            gamelanSource.buffer = gamelanBuffer;
+            gamelanSource.loop = true;
+            gamelanSource.connect(gainNode);
+            gamelanSource.start(0);
+
+            appState.audioPlaying = true;
+            iconMuted.style.display = 'none';
+            iconUnmuted.style.display = 'block';
+            audioBtn.classList.add('active');
+          }
+        } catch (err) {
+          audioLoading = false;
+          console.warn('Audio playback error:', err);
+        }
+      } else {
+        if (gamelanSource) {
+          try { gamelanSource.stop(); } catch (_) {}
+          gamelanSource = null;
+        }
+        appState.audioPlaying = false;
+        iconMuted.style.display = 'block';
+        iconUnmuted.style.display = 'none';
+        audioBtn.classList.remove('active');
+      }
+    }
+
+    audioBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setAudioPlaying(!appState.audioPlaying);
+    });
+
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsPanel = document.getElementById('settings-panel');
+    const toggleCamPreview = document.getElementById('toggle-cam-preview');
+    const toggleShowcase = document.getElementById('toggle-showcase');
+    const toggleDemo = document.getElementById('toggle-demo');
+    const sliderReach = document.getElementById('slider-reach');
+    const camPreviewBox = document.getElementById('cam-preview-box');
+    const btnCamLayout = document.getElementById('btn-cam-layout');
+
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = settingsPanel.classList.toggle('hidden');
+      settingsBtn.classList.toggle('active', !isHidden);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+        settingsPanel.classList.add('hidden');
+        settingsBtn.classList.remove('active');
+      }
+    });
+
+    toggleCamPreview.addEventListener('click', () => {
+      appState.showCamPreview = !appState.showCamPreview;
+      toggleCamPreview.classList.toggle('on', appState.showCamPreview);
+      camPreviewBox.classList.toggle('hidden', !appState.showCamPreview);
+    });
+
+    function setShowcaseLayout(enabled) {
+      appState.showcaseMode = enabled;
+      toggleShowcase.classList.toggle('on', appState.showcaseMode);
+      document.body.classList.toggle('showcase-mode', appState.showcaseMode);
+      if (appState.showcaseMode && !appState.showCamPreview) {
+        appState.showCamPreview = true;
+        toggleCamPreview.classList.add('on');
+        camPreviewBox.classList.remove('hidden');
+      }
+      setTimeout(resizeCanvases, 30);
+      setTimeout(resizeCanvases, 350);
+    }
+
+    toggleShowcase.addEventListener('click', () => {
+      setShowcaseLayout(!appState.showcaseMode);
+    });
+
+    btnCamLayout.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setShowcaseLayout(!appState.showcaseMode);
+    });
+
+    toggleDemo.addEventListener('click', () => {
+      appState.demoMode = !appState.demoMode;
+      toggleDemo.classList.toggle('on', appState.demoMode);
+      if (appState.demoMode) {
+        camPromptOverlay.classList.add('hidden');
+      } else if (!appState.videoStreaming) {
+        camPromptOverlay.classList.remove('hidden');
+      }
+      updateStatusPill(appState.demoMode ? 2 : appState.handsDetectedCount);
+    });
+
+    sliderReach.addEventListener('input', (e) => {
+      appState.reachMultiplier = parseFloat(e.target.value);
+    });
+
+    // Keyboard shortcuts: B / Space = next background (3->2->1), 1/2/3/4 = select background, M = mute, D = demo, C = camera
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'b' || e.key === 'B' || e.key === ' ') {
+        e.preventDefault();
+        cyclePhotoBackgrounds('⌨️ Ganti Background');
+      } else if (e.key === '1') {
+        setBackgroundIndex(0, '⌨️ Pilih Background');
+      } else if (e.key === '2') {
+        setBackgroundIndex(1, '⌨️ Pilih Background');
+      } else if (e.key === '3') {
+        setBackgroundIndex(2, '⌨️ Pilih Background');
+      } else if (e.key === 'm' || e.key === 'M') {
+        setAudioPlaying(!appState.audioPlaying);
+      } else if (e.key === 'd' || e.key === 'D') {
+        toggleDemo.click();
+      } else if (e.key === 'c' || e.key === 'C') {
+        toggleCamPreview.click();
+      }
+    });
+  </script>
+</body>
+</html>
